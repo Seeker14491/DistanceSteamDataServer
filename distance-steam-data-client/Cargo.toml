@@ -1,0 +1,12 @@
+[package]
+name = "distance-steam-data-client"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tonic-build = "0.8"
+
+[dependencies]
+anyhow = "1"
+prost = "0.11"
+tonic = "0.8"

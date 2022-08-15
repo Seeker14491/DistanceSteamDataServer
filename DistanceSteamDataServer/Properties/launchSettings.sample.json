@@ -1,0 +1,15 @@
+﻿{
+  "profiles": {
+    "DistanceSteamDataServer": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5174;https://localhost:7022",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "STEAM_USERNAME": "John",
+        "STEAM_PASSWORD": "12345"
+      }
+    }
+  }
+}
