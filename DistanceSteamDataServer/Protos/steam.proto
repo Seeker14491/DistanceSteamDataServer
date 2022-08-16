@@ -24,6 +24,7 @@ message LeaderboardEntry {
   fixed64 steam_id = 1;
   int32 global_rank = 2;
   int32 score = 3;
+  bool has_replay = 4;
 }
 
 message PersonaRequest {

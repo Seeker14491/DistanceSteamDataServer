@@ -39,7 +39,8 @@ public class SteamService : Steam.SteamBase
         {
             SteamId = entry.SteamID,
             GlobalRank = entry.GlobalRank,
-            Score = entry.Score
+            Score = entry.Score,
+            HasReplay = entry.UGCId != 0xFFFF_FFFF_FFFF_FFFF
         });
 
         var response = new LeaderboardResponse
