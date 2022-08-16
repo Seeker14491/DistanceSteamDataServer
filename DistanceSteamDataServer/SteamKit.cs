@@ -177,8 +177,6 @@ public class SteamKit
 
     private static void OnPersonaState(SteamFriends.PersonaStateCallback callback)
     {
-        Console.WriteLine($"Received player name for {callback.FriendID}: {callback.Name}");
-
         lock (GetPersonaJobs)
         {
             var i = 0;
