@@ -1,0 +1,10 @@
+# directories
+DistanceSteamDataServer/**/bin/
+DistanceSteamDataServer/**/obj/
+DistanceSteamDataServer/**/out/
+rust-client/
+
+# files
+.dockerignore
+Dockerfile
+README.md
