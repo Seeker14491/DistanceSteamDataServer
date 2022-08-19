@@ -22,7 +22,7 @@ docker run --rm -p 80:80 -e STEAM_USERNAME=john -e STEAM_PASSWORD=12345 distance
 
 ## Using the Rust client library
 
-Add the library to Cargo.toml:
+Add the library to `Cargo.toml`:
 
 ```toml
 [dependencies]
