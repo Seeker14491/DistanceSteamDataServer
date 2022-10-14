@@ -32,6 +32,8 @@ internal static class Program
         await Task.WhenAny(steamTask, appTask);
         cancelSource.Cancel();
         Steam.Disconnect();
-        await Task.WhenAll(steamTask, appTask);
+        var allFinished = Task.WhenAll(steamTask, appTask);
+        var timeout = Task.Delay(30_000);
+        await Task.WhenAny(allFinished, timeout);
     }
 }
