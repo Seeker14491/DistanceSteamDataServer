@@ -4,7 +4,7 @@ WORKDIR /source
 
 # copy csproj and restore as distinct layers
 COPY DistanceSteamDataServer/*.csproj .
-RUN dotnet restore --use-current-runtime  
+RUN dotnet restore --use-current-runtime
 
 # copy everything else and build app
 COPY DistanceSteamDataServer/. .
