@@ -12,28 +12,9 @@ public class SteamKit
     private readonly string _steamUsername;
     private readonly string _steamPassword;
 
-    private bool _isRunning;
-    private readonly object _isRunningLock = new();
-
     private readonly TaskCompletionSource _onAccountInfoTcs = new();
 
-    private bool IsRunning
-    {
-        get
-        {
-            lock (_isRunningLock)
-            {
-                return _isRunning;
-            }
-        }
-        set
-        {
-            lock (_isRunningLock)
-            {
-                _isRunning = value;
-            }
-        }
-    }
+    private TaskCompletionSource _shutdown = new();
 
     private SteamKit(SteamClient client, CallbackManager callbackManager, string steamUsername, string steamPassword)
     {
@@ -69,17 +50,22 @@ public class SteamKit
 
     public async Task<Task> RunAsync()
     {
-        IsRunning = true;
-
         var waitForAccountInfoTask = _onAccountInfoTcs.Task;
         var runCallbacksTask = Task.Factory.StartNew(() =>
         {
-            while (IsRunning)
+            var shutdown = _shutdown.Task;
+            while (!shutdown.IsCompleted)
             {
                 _callbackManager.RunWaitAllCallbacks(TimeSpan.FromMilliseconds(50));
             }
         }, TaskCreationOptions.LongRunning);
 
+        var shutdown = _shutdown.Task;
+        await Task.WhenAny(waitForAccountInfoTask, shutdown);
+        if (shutdown.IsCompleted)
+        {
+            throw new OperationCanceledException();
+        }
         await waitForAccountInfoTask;
         Console.WriteLine("Steam account info received");
 
@@ -106,7 +92,7 @@ public class SteamKit
     {
         Console.WriteLine("Disconnected from Steam");
 
-        IsRunning = false;
+        _shutdown.SetResult();
     }
 
     private void OnLoggedOn(SteamUser.LoggedOnCallback callback)
@@ -117,13 +103,13 @@ public class SteamKit
             {
                 Console.WriteLine("Unable to logon to Steam: This account is SteamGuard protected.");
 
-                IsRunning = false;
+                _shutdown.SetResult();
                 return;
             }
 
             Console.WriteLine("Unable to logon to Steam: {0} / {1}", callback.Result, callback.ExtendedResult);
 
-            IsRunning = false;
+            _shutdown.SetResult();
             return;
         }
 
@@ -139,7 +125,7 @@ public class SteamKit
     {
         Console.WriteLine("Logged off of Steam: {0}", callback.Result);
 
-        IsRunning = false;
+        _shutdown.SetResult();
     }
 
     private static readonly List<(HashSet<SteamID> idSet, TaskCompletionSource tcs)> GetPersonaJobs = new();
