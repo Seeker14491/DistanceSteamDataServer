@@ -31,7 +31,7 @@ internal static class Program
         var cancelSource = new CancellationTokenSource();
         var appTask = app.RunAsync(cancelSource.Token);
 
-        await Task.WhenAny(steamTask, appTask);
+        await await Task.WhenAny(steamTask, appTask);
         cancelSource.Cancel();
         Steam.Disconnect();
         var allFinished = Task.WhenAll(steamTask, appTask);
