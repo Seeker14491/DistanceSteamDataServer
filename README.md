@@ -17,7 +17,7 @@ Also in this repo is a Rust client library for consuming the API.
 
 ```bash
 docker build -t distance-steam-data-server .
-docker run --rm -p 80:80 -e STEAM_USERNAME=john -e STEAM_PASSWORD=12345 distance-steam-data-server
+docker run --rm -p 80:8080 -e STEAM_USERNAME=john -e STEAM_PASSWORD=12345 distance-steam-data-server
 ```
 
 ## Using the Rust client library
