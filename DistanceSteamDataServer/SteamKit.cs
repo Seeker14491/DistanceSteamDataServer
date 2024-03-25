@@ -128,7 +128,15 @@ public class SteamKit
         _shutdown.SetResult();
     }
 
-    private static readonly List<(HashSet<SteamID> idSet, TaskCompletionSource tcs)> GetPersonaJobs = new();
+    private class GetPersonaNamesJob(HashSet<SteamID> pendingIds)
+    {
+        public HashSet<SteamID> PendingIds { get; set; } = pendingIds;
+        public TaskCompletionSource Tcs { get; set; } = new TaskCompletionSource();
+        public CancellationTokenSource CancelTimeout { get; set; } = new CancellationTokenSource();
+        public bool IsDead { get; set; } = false;
+    }
+
+    private static readonly List<GetPersonaNamesJob> GetPersonaJobs = [];
 
     public async Task<IEnumerable<string>> GetPersonaNames(IEnumerable<SteamID> steamIds)
     {
@@ -140,18 +148,36 @@ public class SteamKit
             return steamIdList.Select(_ => "");
         }
 
-        var idSet = new HashSet<SteamID>(filteredSteamIds);
-        var tcs = new TaskCompletionSource();
+        var pendingIds = new HashSet<SteamID>(filteredSteamIds);
+        var job = new GetPersonaNamesJob(pendingIds);
+        ResetGetPersonaNamesTimeout(job);
+
         lock (GetPersonaJobs)
         {
-            GetPersonaJobs.Add((idSet, tcs));
+            GetPersonaJobs.Add(job);
         }
 
         steamFriends.RequestFriendInfo(filteredSteamIds, EClientPersonaStateFlag.PlayerName);
-
-        await tcs.Task;
+        await job.Tcs.Task;
 
         return steamIdList.Select(id => steamFriends.GetFriendPersonaName(id) ?? "");
+    }
+
+    private static void ResetGetPersonaNamesTimeout(GetPersonaNamesJob job)
+    {
+        job.CancelTimeout.Cancel();
+        job.CancelTimeout = new CancellationTokenSource();
+        var timeout = Task.Delay(60 * 1000, job.CancelTimeout.Token);
+        _ = Task.Run(async () =>
+        {
+            await timeout;
+            job.Tcs.TrySetResult();
+            job.IsDead = true;
+            if (job.PendingIds.Count > 0)
+            {
+                Console.WriteLine($"GetPersonaNames request timed out. Skipping {job.PendingIds.Count} players.");
+            }
+        });
     }
 
     // Returns true when the instance of the account, type of account, and universe are all '1'.
@@ -161,6 +187,8 @@ public class SteamKit
         return id >> 32 == 0x0110_0001;
     }
 
+    private static DateTime OnPersonaStateHeartbeat = DateTime.Now;
+
     private static void OnPersonaState(SteamFriends.PersonaStateCallback callback)
     {
         lock (GetPersonaJobs)
@@ -168,17 +196,27 @@ public class SteamKit
             var i = 0;
             while (i < GetPersonaJobs.Count)
             {
-                var (set, tcs) = GetPersonaJobs[i];
-                set.Remove(callback.FriendID);
-                if (set.Count == 0)
+                var job = GetPersonaJobs[i];
+                job.PendingIds.Remove(callback.FriendID);
+                if (job.PendingIds.Count == 0 || job.IsDead)
                 {
-                    tcs.SetResult();
+                    job.Tcs.TrySetResult();
                     GetPersonaJobs.RemoveAt(i);
                 }
                 else
                 {
                     i += 1;
                 }
+            }
+
+            if (DateTime.Now - OnPersonaStateHeartbeat > TimeSpan.FromSeconds(5))
+            {
+                foreach (var job in GetPersonaJobs)
+                {
+                    ResetGetPersonaNamesTimeout(job);
+                }
+
+                OnPersonaStateHeartbeat = DateTime.Now;
             }
         }
     }
