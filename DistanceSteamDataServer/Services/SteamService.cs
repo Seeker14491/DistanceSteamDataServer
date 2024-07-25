@@ -18,7 +18,7 @@ public class SteamService : Steam.SteamBase
         }
 
         var numEntriesRequested = request.EndIndex - request.StartIndex + 1;
-        if ((request.StartIndex < 1 && request.EndIndex < 1) || (numEntriesRequested < 1))
+        if (request is { StartIndex: < 1, EndIndex: < 1 } || numEntriesRequested < 1)
         {
             return new LeaderboardResponse
             {
@@ -64,12 +64,5 @@ public class SteamService : Steam.SteamBase
         response.PersonaNames.AddRange(personaNames);
 
         return response;
-    }
-
-    private readonly ILogger<SteamService> _logger;
-
-    public SteamService(ILogger<SteamService> logger)
-    {
-        _logger = logger;
     }
 }

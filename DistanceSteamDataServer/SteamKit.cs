@@ -14,7 +14,7 @@ public class SteamKit
 
     private readonly TaskCompletionSource _onAccountInfoTcs = new();
 
-    private TaskCompletionSource _shutdown = new();
+    private readonly TaskCompletionSource _shutdown = new();
 
     private SteamKit(SteamClient client, CallbackManager callbackManager, string steamUsername, string steamPassword)
     {
@@ -66,6 +66,7 @@ public class SteamKit
         {
             throw new OperationCanceledException();
         }
+
         await waitForAccountInfoTask;
         Console.WriteLine("Steam account info received");
 
@@ -133,7 +134,7 @@ public class SteamKit
         public HashSet<SteamID> PendingIds { get; set; } = pendingIds;
         public TaskCompletionSource Tcs { get; set; } = new TaskCompletionSource();
         public CancellationTokenSource CancelTimeout { get; set; } = new CancellationTokenSource();
-        public bool IsDead { get; set; } = false;
+        public bool IsDead { get; set; }
     }
 
     private static readonly List<GetPersonaNamesJob> GetPersonaJobs = [];
@@ -187,7 +188,7 @@ public class SteamKit
         return id >> 32 == 0x0110_0001;
     }
 
-    private static DateTime OnPersonaStateHeartbeat = DateTime.Now;
+    private static DateTime _onPersonaStateHeartbeat = DateTime.Now;
 
     private static void OnPersonaState(SteamFriends.PersonaStateCallback callback)
     {
@@ -209,15 +210,14 @@ public class SteamKit
                 }
             }
 
-            if (DateTime.Now - OnPersonaStateHeartbeat > TimeSpan.FromSeconds(5))
-            {
-                foreach (var job in GetPersonaJobs)
-                {
-                    ResetGetPersonaNamesTimeout(job);
-                }
+            if (DateTime.Now - _onPersonaStateHeartbeat <= TimeSpan.FromSeconds(5)) return;
 
-                OnPersonaStateHeartbeat = DateTime.Now;
+            foreach (var job in GetPersonaJobs)
+            {
+                ResetGetPersonaNamesTimeout(job);
             }
+
+            _onPersonaStateHeartbeat = DateTime.Now;
         }
     }
 }
