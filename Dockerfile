@@ -1,17 +1,20 @@
 # https://hub.docker.com/_/microsoft-dotnet
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /source
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
+WORKDIR /src
 
-# copy csproj and restore as distinct layers
-COPY DistanceSteamDataServer/*.csproj .
-RUN dotnet restore --use-current-runtime
+# copy project metadata and restore as a dedicated layer
+COPY DistanceSteamDataServer/DistanceSteamDataServer.csproj DistanceSteamDataServer/
+RUN dotnet restore DistanceSteamDataServer/DistanceSteamDataServer.csproj
 
-# copy everything else and build app
-COPY DistanceSteamDataServer/. .
-RUN dotnet publish -c Release -o /app --use-current-runtime --self-contained false --no-restore
+FROM restore AS publish
+
+# copy source and publish the app
+COPY DistanceSteamDataServer/ DistanceSteamDataServer/
+RUN dotnet publish DistanceSteamDataServer/DistanceSteamDataServer.csproj -c Release -o /app/publish --no-restore
 
 # final stage/image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
-COPY --from=build /app .
+EXPOSE 8080
+COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "DistanceSteamDataServer.dll"]

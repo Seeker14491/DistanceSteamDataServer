@@ -6,7 +6,7 @@ public class SteamKit
 {
     public const uint DistanceAppId = 233610;
 
-    public readonly SteamClient SteamClient;
+    public SteamClient SteamClient { get; }
     private readonly CallbackManager _callbackManager;
 
     private readonly string _steamUsername;
@@ -129,7 +129,7 @@ public class SteamKit
         _shutdown.SetResult();
     }
 
-    private class GetPersonaNamesJob(HashSet<SteamID> pendingIds)
+    private sealed class GetPersonaNamesJob(HashSet<SteamID> pendingIds)
     {
         public HashSet<SteamID> PendingIds { get; set; } = pendingIds;
         public TaskCompletionSource Tcs { get; set; } = new TaskCompletionSource();

@@ -14,7 +14,8 @@ public class SteamService : Steam.SteamBase
         // This succeeds under normal circumstances, even for non-existing leaderboards.
         if (leaderboard.Result != EResult.OK)
         {
-            throw new Exception($"Error finding leaderboard '{request.LeaderboardName}'");
+            throw new RpcException(
+                new Status(StatusCode.Internal, $"Error finding leaderboard '{request.LeaderboardName}'"));
         }
 
         var numEntriesRequested = request.EndIndex - request.StartIndex + 1;
