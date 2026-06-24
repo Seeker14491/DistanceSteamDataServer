@@ -15,6 +15,7 @@ public class SteamKit
     private readonly TaskCompletionSource _onAccountInfoTcs = new();
 
     private readonly TaskCompletionSource _shutdown = new();
+    private bool _reconnectingAfterLogonFailure;
 
     private SteamKit(SteamClient client, CallbackManager callbackManager, string steamUsername, string steamPassword)
     {
@@ -80,6 +81,7 @@ public class SteamKit
 
     private void OnConnected(SteamClient.ConnectedCallback callback)
     {
+        _reconnectingAfterLogonFailure = false;
         Console.WriteLine("Connected to Steam! Logging in '{0}'...", _steamUsername);
 
         SteamClient.GetHandler<SteamUser>()!.LogOn(new SteamUser.LogOnDetails
@@ -93,6 +95,11 @@ public class SteamKit
     {
         Console.WriteLine("Disconnected from Steam");
 
+        if (_reconnectingAfterLogonFailure && callback.UserInitiated)
+        {
+            return;
+        }
+
         _shutdown.SetResult();
     }
 
@@ -105,6 +112,15 @@ public class SteamKit
                 Console.WriteLine("Unable to logon to Steam: This account is SteamGuard protected.");
 
                 _shutdown.SetResult();
+                return;
+            }
+
+            if (callback.Result == EResult.TryAnotherCM || callback.Result == EResult.ServiceUnavailable)
+            {
+                Console.WriteLine("Unable to logon to Steam: {0} / {1}. Reconnecting...", callback.Result, callback.ExtendedResult);
+
+                _reconnectingAfterLogonFailure = true;
+                SteamClient.Connect();
                 return;
             }
 
