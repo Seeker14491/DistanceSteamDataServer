@@ -8,6 +8,8 @@ public class SteamKit
 
     public SteamClient SteamClient { get; }
     private readonly CallbackManager _callbackManager;
+    private readonly SteamUser _steamUser;
+    private readonly SteamFriends _steamFriends;
 
     private readonly string _steamUsername;
     private readonly string _steamPassword;
@@ -21,6 +23,8 @@ public class SteamKit
     {
         SteamClient = client;
         _callbackManager = callbackManager;
+        _steamUser = client.GetHandler<SteamUser>()!;
+        _steamFriends = client.GetHandler<SteamFriends>()!;
         _steamUsername = steamUsername;
         _steamPassword = steamPassword;
     }
@@ -76,7 +80,7 @@ public class SteamKit
 
     public void Disconnect()
     {
-        SteamClient.GetHandler<SteamUser>()!.LogOff();
+        _steamUser.LogOff();
     }
 
     private void OnConnected(SteamClient.ConnectedCallback callback)
@@ -84,7 +88,7 @@ public class SteamKit
         _reconnectingAfterLogonFailure = false;
         Console.WriteLine("Connected to Steam! Logging in '{0}'...", _steamUsername);
 
-        SteamClient.GetHandler<SteamUser>()!.LogOn(new SteamUser.LogOnDetails
+        _steamUser.LogOn(new SteamUser.LogOnDetails
         {
             Username = _steamUsername,
             Password = _steamPassword,
@@ -159,7 +163,6 @@ public class SteamKit
     {
         var steamIdList = steamIds as SteamID[] ?? steamIds.ToArray();
         var filteredSteamIds = steamIdList.Where(IsSteamIdValid).ToArray();
-        var steamFriends = SteamClient.GetHandler<SteamFriends>()!;
         if (filteredSteamIds.Length <= 0)
         {
             return steamIdList.Select(_ => "");
@@ -174,10 +177,10 @@ public class SteamKit
             GetPersonaJobs.Add(job);
         }
 
-        steamFriends.RequestFriendInfo(filteredSteamIds, EClientPersonaStateFlag.PlayerName);
+        _steamFriends.RequestFriendInfo(filteredSteamIds, EClientPersonaStateFlag.PlayerName);
         await job.Tcs.Task;
 
-        return steamIdList.Select(id => steamFriends.GetFriendPersonaName(id) ?? "");
+        return steamIdList.Select(id => _steamFriends.GetFriendPersonaName(id) ?? "");
     }
 
     private static void ResetGetPersonaNamesTimeout(GetPersonaNamesJob job)

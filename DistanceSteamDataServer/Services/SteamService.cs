@@ -5,11 +5,17 @@ namespace DistanceSteamDataServer.Services;
 
 public class SteamService : Steam.SteamBase
 {
+    private readonly SteamUserStats _steamUserStats;
+
+    public SteamService()
+    {
+        _steamUserStats = Program.Steam.SteamClient.GetHandler<SteamUserStats>()!;
+    }
+
     public override async Task<LeaderboardResponse> GetLeaderboardEntries(LeaderboardRequest request,
         ServerCallContext context)
     {
-        var steamUserStats = Program.Steam.SteamClient.GetHandler<SteamUserStats>()!;
-        var leaderboard = await steamUserStats.FindLeaderboard(SteamKit.DistanceAppId, request.LeaderboardName);
+        var leaderboard = await _steamUserStats.FindLeaderboard(SteamKit.DistanceAppId, request.LeaderboardName);
 
         // This succeeds under normal circumstances, even for non-existing leaderboards.
         if (leaderboard.Result != EResult.OK)
@@ -27,7 +33,7 @@ public class SteamService : Steam.SteamBase
             };
         }
 
-        var entries = await steamUserStats.GetLeaderboardEntries(SteamKit.DistanceAppId, leaderboard.ID,
+        var entries = await _steamUserStats.GetLeaderboardEntries(SteamKit.DistanceAppId, leaderboard.ID,
             request.StartIndex,
             request.EndIndex, ELeaderboardDataRequest.Global);
         if (entries.Result != EResult.OK)
