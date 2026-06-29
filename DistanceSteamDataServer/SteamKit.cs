@@ -1,4 +1,5 @@
 using SteamKit2;
+using SteamKit2.Authentication;
 
 namespace DistanceSteamDataServer;
 
@@ -83,15 +84,52 @@ public class SteamKit
         _steamUser.LogOff();
     }
 
-    private void OnConnected(SteamClient.ConnectedCallback callback)
+    private async void OnConnected(SteamClient.ConnectedCallback callback)
     {
         _reconnectingAfterLogonFailure = false;
         Console.WriteLine("Connected to Steam! Logging in '{0}'...", _steamUsername);
 
-        _steamUser.LogOn(new SteamUser.LogOnDetails
+        try
+        {
+            await LogOnWithAccessTokenAsync();
+        }
+        catch (UnsupportedSteamGuardException)
+        {
+            Console.WriteLine("Unable to logon to Steam: This account is SteamGuard protected.");
+
+            _shutdown.TrySetResult();
+        }
+        catch (AuthenticationException ex)
+        {
+            Console.WriteLine("Unable to authenticate with Steam: {0} / {1}", ex.Result, ex.Message);
+
+            _shutdown.TrySetResult();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Unable to authenticate with Steam: {0}", ex.Message);
+
+            _shutdown.TrySetResult();
+        }
+    }
+
+    private async Task LogOnWithAccessTokenAsync()
+    {
+        var authSession = await SteamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
         {
             Username = _steamUsername,
             Password = _steamPassword,
+            IsPersistentSession = false,
+            Authenticator = UnsupportedSteamGuardAuthenticator.Instance,
+        });
+
+        var pollResponse = await authSession.PollingWaitForResultAsync();
+
+        _steamUser.LogOn(new SteamUser.LogOnDetails
+        {
+            Username = pollResponse.AccountName,
+            AccessToken = pollResponse.RefreshToken,
+            ShouldRememberPassword = false,
         });
     }
 
@@ -239,4 +277,30 @@ public class SteamKit
             _onPersonaStateHeartbeat = DateTime.Now;
         }
     }
+
+    private sealed class UnsupportedSteamGuardAuthenticator : IAuthenticator
+    {
+        public static readonly UnsupportedSteamGuardAuthenticator Instance = new();
+
+        private UnsupportedSteamGuardAuthenticator()
+        {
+        }
+
+        public Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
+        {
+            throw new UnsupportedSteamGuardException();
+        }
+
+        public Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
+        {
+            throw new UnsupportedSteamGuardException();
+        }
+
+        public Task<bool> AcceptDeviceConfirmationAsync()
+        {
+            throw new UnsupportedSteamGuardException();
+        }
+    }
+
+    private sealed class UnsupportedSteamGuardException : Exception;
 }
