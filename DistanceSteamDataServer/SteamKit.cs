@@ -6,6 +6,7 @@ namespace DistanceSteamDataServer;
 public class SteamKit
 {
     public const uint DistanceAppId = 233610;
+    private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(5);
 
     public SteamClient SteamClient { get; }
     private readonly CallbackManager _callbackManager;
@@ -137,12 +138,26 @@ public class SteamKit
     {
         Console.WriteLine("Disconnected from Steam");
 
-        if (_reconnectingAfterLogonFailure && callback.UserInitiated)
+        if (_reconnectingAfterLogonFailure)
+        {
+            _ = ReconnectAfterDelayAsync();
+            return;
+        }
+
+        _shutdown.TrySetResult();
+    }
+
+    private async Task ReconnectAfterDelayAsync()
+    {
+        await Task.Delay(ReconnectDelay);
+
+        if (_shutdown.Task.IsCompleted)
         {
             return;
         }
 
-        _shutdown.SetResult();
+        Console.WriteLine("Reconnecting to Steam...");
+        SteamClient.Connect();
     }
 
     private void OnLoggedOn(SteamUser.LoggedOnCallback callback)
@@ -162,7 +177,7 @@ public class SteamKit
                 Console.WriteLine("Unable to logon to Steam: {0} / {1}. Reconnecting...", callback.Result, callback.ExtendedResult);
 
                 _reconnectingAfterLogonFailure = true;
-                SteamClient.Connect();
+                SteamClient.Disconnect();
                 return;
             }
 
